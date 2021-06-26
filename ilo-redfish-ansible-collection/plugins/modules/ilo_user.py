@@ -20,8 +20,8 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 ---
-module: ilo_user_facts
-short_description: Retrieve facts about iLO accounts
+module: ilo_user
+short_description: Configure ilo accounts
 description:
     - Retrieve facts about iLO accounts
 version_added: "1.0"
