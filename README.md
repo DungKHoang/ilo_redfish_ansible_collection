@@ -18,5 +18,5 @@ Modules to manage iLO using Ansible playbooks.
 Set the environment variables `ANSIBLE_LIBRARY` and `ANSIBLE_MODULE_UTILS`, specifying the `library` full path from the cloned project:
 
 ```bash
-$ export ANSIBLE_LIBRARY=/path/to/ilo_ansible_collection/plugins/modules
-$ export ANSIBLE_MODULE_UTILS=/path/to/ilo_ansible_collection/plugins/module_utils
+$ export ANSIBLE_LIBRARY=/path/to/ilo_redfish_ansible_collection/plugins/modules
+$ export ANSIBLE_MODULE_UTILS=/path/to/ilo_redfish_ansible_collection/plugins/module_utils
