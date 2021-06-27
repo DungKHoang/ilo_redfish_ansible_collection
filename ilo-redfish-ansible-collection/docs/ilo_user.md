@@ -55,9 +55,9 @@ description: This modules enables configuration of iLO accounts
 ```YAML
    - name: create user with privs
      ilo_user:
-        ilo_ip        : "{{ ip }}"
-        ilo_username  : "{{ username }}"
-        ilo_password  : "{{ password }}"
+        ilo_ip:       {{'ilo_ip'}}
+        ilo_username: {{'ilo_username'}}
+        password:     {{'ilo_password'}}
 
         state                       : present       
         data:
@@ -80,9 +80,9 @@ description: This modules enables configuration of iLO accounts
 
    - name: create user with roleid
      ilo_user:
-        ilo_ip        : "{{ ip }}"
-        ilo_username  : "{{ username }}"
-        ilo_password  : "{{ password }}"
+        ilo_ip:       {{'ilo_ip'}}
+        ilo_username: {{'ilo_username'}}
+        password:     {{'ilo_password'}}
 
         state                       : present       
         data:

@@ -32,9 +32,9 @@ description: This modules provides facts of ilo users/accounts
 ```YAML
 - name: Gather facts about iLO accounts
   ilo_user_facts:
-    ilo_ip: my_ip
-    ilo_username: administrator
-    password: my_password
+    ilo_ip:       {{'ilo_ip'}}
+    ilo_username: {{'ilo_username'}}
+    password:     {{'ilo_password'}}
   no_log: true
   register: result
 - debug: var=result['user']
@@ -42,9 +42,9 @@ description: This modules provides facts of ilo users/accounts
 
 - name: Get account based on filter UserName
   ilo_user_facts:
-    ilo_ip:  my_ip
-    ilo_username: administrator
-    password: my_password
+    ilo_ip:       {{'ilo_ip'}}
+    ilo_username: {{'ilo_username'}}
+    password:     {{'ilo_password'}}
     type:     'UserName'
     name:     'this_user'
   no_log: true
@@ -54,9 +54,9 @@ description: This modules provides facts of ilo users/accounts
 
 - name: Get account based on filter RoleId
   ilo_user_facts:
-    ilo_ip:  my_ip
-    ilo_username: administrator
-    password: my_password
+    ilo_ip:       {{'ilo_ip'}}
+    ilo_username: {{'ilo_username'}}
+    password:     {{'ilo_password'}}
     type:     'RoleId'
     name:     'Operator'      # Possible values: Administrator, Operator, ReadOnly
   no_log: true
