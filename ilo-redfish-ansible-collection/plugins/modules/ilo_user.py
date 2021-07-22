@@ -146,14 +146,15 @@ def run_module():
           _privileges = _data['privileges']
 
         # Create user   username, password, roleid, loginname, privileges
-        _msg, _value, _status = users.create_user(username=_username, password=_password, roleid=_roleid, loginname=_loginname,privileges= _privileges )    
-        result = dict(changed= True, user=json.dumps(_value, indent=4))
+        _new, _status, _msg  = users.create_user(username=_username, password=_password, roleid=_roleid, loginname=_loginname,privileges= _privileges )    
+        
+        result = dict(changed= _status, user=json.dumps(_new, indent=4))
 
 
     if _state == 'absent': 
-        _username     = _data['username']
-        _msg, _status = users.delete_user(_username)
-        result        = dict(changed=_status, user=_msg)
+        _username             = _data['username']
+        _resp, _status, _msg  = users.delete_user(_username)
+        result                = dict(changed=_status, user=json.dumps(_resp, indent=4))
         
       
     # Logout redfish and exit

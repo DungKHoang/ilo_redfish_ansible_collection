@@ -1,0 +1,45 @@
+---
+- hosts: localhost
+
+  vars:
+    username:   "admin"
+    password:   "StormLake21!" 
+    ip:         "10.100.1.2"
+    
+
+  tasks:
+    - name: Gather facts about firmware inventory 
+      ilo_firmware_facts:
+        ilo_ip          : "{{ ip }}"
+        ilo_username    : "{{ username }}"
+        ilo_password    : "{{ password }}"
+        option          : firmware_inventory
+      register: result
+    - debug: var=result['ilo']
+
+    - name: Gather facts about software install set
+      ilo_firmware_facts:
+        ilo_ip          : "{{ ip }}"
+        ilo_username    : "{{ username }}"
+        ilo_password    : "{{ password }}"
+        option          : install_set
+      register: result
+    - debug: var=result['ilo']
+
+    - name: Gather facts about maintenance_window
+      ilo_firmware_facts:
+        ilo_ip          : "{{ ip }}"
+        ilo_username    : "{{ username }}"
+        ilo_password    : "{{ password }}"
+        option          : maintenance_window
+      register: result
+    - debug: var=result['ilo']
+
+    - name: Gather facts about component respository
+      ilo_firmware_facts:
+        ilo_ip          : "{{ ip }}"
+        ilo_username    : "{{ username }}"
+        ilo_password    : "{{ password }}"
+        option          : component_repository
+      register: result
+    - debug: var=result['ilo']

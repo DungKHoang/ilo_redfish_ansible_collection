@@ -2,6 +2,7 @@
 
 Modules to manage iLO using Ansible playbooks.
 
+## Note: July 2021 - Add modules to handle system , users, storage
 ## Requirements
 
  - Ansible >= 2.1
@@ -13,10 +14,11 @@ Modules to manage iLO using Ansible playbooks.
 ### 2. Unzip to a local folder
 
 
-### 2. Configure the ANSIBLE_LIBRARY environmental variable
+### 3. Configure the ANSIBLE_LIBRARY environmental variable
 
 Set the environment variables `ANSIBLE_LIBRARY` and `ANSIBLE_MODULE_UTILS`, specifying the `library` full path from the cloned project:
 
 ```bash
 $ export ANSIBLE_LIBRARY=/path/to/ilo_redfish_ansible_collection/plugins/modules
 $ export ANSIBLE_MODULE_UTILS=/path/to/ilo_redfish_ansible_collection/plugins/module_utils
+

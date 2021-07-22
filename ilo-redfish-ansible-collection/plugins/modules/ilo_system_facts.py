@@ -20,10 +20,10 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 ---
-module: ilo_user_facts
-short_description: Retrieve facts about iLO accounts
+module: ilo_system_facts
+short_description: Retrieve facts about computersystem
 description:
-    - Retrieve facts about iLO accounts
+    - Retrieve facts about computersystem
 version_added: "1.0"
 requirements:
     - iLO 5
@@ -47,7 +47,7 @@ EXAMPLES = '''
     password:     {{'ilo_password'}}
     option: Processors
   register: result
-- debug: var=result['system']['processors']
+- debug: var=result['system']['Processors']
 
 - name: Gather facts about Memory
   ilo_system_facts:
@@ -70,6 +70,14 @@ EXAMPLES = '''
 - debug: var=result['system']['storage']['smart_array']
 - debug: var=result['system']['storage']['host_bus_adapter']
 
+- name: Gather facts about Network
+  ilo_system_facts:
+    ilo_ip:       {{'ilo_ip'}}
+    ilo_username: {{'ilo_username'}}
+    password:     {{'ilo_password'}}
+    option: Network
+  register: result
+- debug: var=result['system']['network']
 
 '''
 
@@ -90,7 +98,7 @@ class SystemFactsModule(object):
                 ilo_ip        =dict(type="str", required=True),
                 ilo_username  =dict(type="str", required=True),
                 ilo_password  =dict(type="str", required=True, default=None),
-                option        =dict(type="str", required=False, choices=['Processors','Memory','Storage','EthernetInterfaces'])
+                option        =dict(type="str", required=False, choices=['Processors','Memory','Storage','Network','EthernetInterfaces'])
         )
         _module                 = AnsibleModule(argument_spec=REDFISH_COMMON_ARGS, supports_check_mode=True)
         REDFISH_COMMON_ARGS     = dict(
@@ -129,10 +137,13 @@ def run_module():
           _sys        = dict (
               local_storage     = _local,
               smart_array       = _sma,
-              host_bus_adapter  = _hba
+              host_bus_adapter  = _hba 
           )          
           _sys_result = dict(storage=_sys)
 
+      if _option == 'Network':
+        _sys        = system.get_network_adapter_info()
+        _sys_result = dict(network=_sys)
 
 
     else:

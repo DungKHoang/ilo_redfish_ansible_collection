@@ -1,0 +1,103 @@
+---
+- hosts: localhost
+
+  vars:
+    username:   "admin"
+    password:   "StormLake21!" 
+    ilo_ip:     "10.100.1.2"
+    
+
+  tasks:
+
+
+
+
+   - name: ilo storage - create 
+     ilo_storage:
+        ilo_ip            : "{{ilo_ip}}"
+        ilo_username      : "{{ username }}"
+        ilo_password      : "{{ password }}"
+
+        type              : SmartStorage              # Choices : SmartStorage - LocalStorage
+        controller        : SmartArrayController      # Choices : SmartArrayController - HostBusAdapter if SmartStorage
+        state             : present
+        data:
+          raid            : Raid1                     # Choices: Raid0 - Raid1 - Raid10
+          physical_drives : ["1I:1:2", "2I:1:6"]
+          name            : 'my_logical_drive_name'   # Optional, - if omitted - use system defined name     
+     
+     register: result
+
+   - debug: var=result['system']
+
+   - name: ilo storage - create - Already existed
+     ilo_storage:
+        ilo_ip            : "{{ilo_ip}}"
+        ilo_username      : "{{ username }}"
+        ilo_password      : "{{ password }}"
+
+        type              : SmartStorage              # Choices : SmartStorage - LocalStorage
+        controller        : SmartArrayController      # Choices : SmartArrayController - HostBusAdapter if SmartStorage
+        state             : present
+        data:
+          raid            : Raid1                     # Choices: Raid0 - Raid1 - Raid10
+          physical_drives : ["1I:1:2", "2I:1:6"]
+          name            : 'my_duplicate_logical_drive_name'   # Optional, - if omitted - use system defined name     
+     
+     register: result
+
+   - debug: var=result['system']  
+
+   - name: ilo storage - create - miss radi
+     ilo_storage:
+        ilo_ip            : "{{ilo_ip}}"
+        ilo_username      : "{{ username }}"
+        ilo_password      : "{{ password }}"
+
+        type              : SmartStorage              # Choices : SmartStorage - LocalStorage
+        controller        : SmartArrayController      # Choices : SmartArrayController - HostBusAdapter if SmartStorage
+        state             : present
+        data:
+          #raid            : Raid1                     # Choices: Raid0 - Raid1 - Raid10
+          physical_drives : ["1I:1:2", "2I:1:6"]
+          name            : 'my_logical_drive_name'   # Optional, - if omitted - use system defined name     
+     
+     register: result
+
+   - debug: var=result['system']
+
+
+   - name: ilo storage - Delete - Not Found
+     ilo_storage:
+        ilo_ip            : "{{ilo_ip}}"
+        ilo_username      : "{{ username }}"
+        ilo_password      : "{{ password }}"
+
+        type              : SmartStorage              # Choices : SmartStorage - LocalStorage
+        controller        : SmartArrayController      # Choices : SmartArrayController - HostBusAdapter if SmartStorage
+        state             : absent
+        data:
+          raid            : Raid1                     # Choices: Raid0 - Raid1 - Raid10
+          physical_drives : ["3I:1:4", "4I:1:7"]
+          name            : 'my_logical_drive_name'   # Optional, - if omitted - use system defined name     
+     
+     register: result
+
+   - debug: var=result['system']
+
+   - name: ilo storage - create - Not Found
+     ilo_storage:
+        ilo_ip            : "{{ilo_ip}}"
+        ilo_username      : "{{ username }}"
+        ilo_password      : "{{ password }}"
+
+        type              : SmartStorage              # Choices : SmartStorage - LocalStorage
+        controller        : SmartArrayController      # Choices : SmartArrayController - HostBusAdapter if SmartStorage
+        state             : present
+        data:
+          raid            : Raid1                     # Choices: Raid0 - Raid1 - Raid10
+          physical_drives : ["3I:1:4", "4I:1:7"]
+          name            : 'my_logical_drive_name'   # Optional, - if omitted - use system defined name     
+     
+     register: result
+   - debug: var=result['system']

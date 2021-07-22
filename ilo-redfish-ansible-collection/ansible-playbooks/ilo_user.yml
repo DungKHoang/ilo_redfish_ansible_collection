@@ -1,0 +1,59 @@
+---
+- hosts: localhost
+
+  vars:
+    username:   "admin"
+    password:   "StormLake21!" 
+    
+
+  tasks:
+   - name: create user with privs
+     ilo_user:
+        ilo_ip        : "{{ ip }}"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+
+        state                       : present       
+        data:
+          username                  : new_user
+          loginname                 : new_loginname
+          password                  : new_password
+          privileges:
+            - LoginPriv                                                    
+            - HostBIOSConfigPriv 
+            - HostNICConfigPriv                                             
+            - HostStorageConfigPriv   
+            - RemoteConsolePriv       
+            - UserConfigPriv          
+            - VirtualMediaPriv        
+            - VirtualPowerAndResetPriv
+            - iLOConfigPriv                                                   
+     no_log: true
+     register: result
+   - debug: var=result['user'] 
+
+   - name: create user with roleid
+     ilo_user:
+        ilo_ip        : "{{ ip }}"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+
+        state                       : present       
+        data:
+          username                  : new_user
+          loginname                 : new_loginname
+          password                  : new_password
+          roleid                    : Operator  # Possible values: Administrator,Operator,ReadOnly                                             
+     no_log: true
+     register: result
+   - debug: var=result['user'] 
+
+   - name: delete user
+     ilo_user:
+        ilo_ip        : "{{ ip }}"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+
+        state                       : absent       
+        data:
+          username                  : user_to_be_deleted

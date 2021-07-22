@@ -20,10 +20,10 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 ---
-module: ilo_user_facts
-short_description: Retrieve facts about iLO accounts
+module: ilo_manager_facts
+short_description: Retrieve facts about iLO manager 
 description:
-    - Retrieve facts about iLO accounts
+    - Retrieve facts about iLO manager
 version_added: "1.0"
 requirements:
     - iLO 5
@@ -32,38 +32,33 @@ author:
 '''
 
 EXAMPLES = '''
-- name: Gather facts about iLO accounts
-  ilo_user_facts:
-    ilo_ip: 172.16.101.48
-    ilo_username: administrator
-    password: my_password
-  no_log: true
+- name: Gather facts about managers - Summary
+  ilo_manager_facts:
+    ilo_ip:       {{'ilo_ip'}}
+    ilo_username: {{'ilo_username'}}
+    password:     {{'ilo_password'}}
   register: result
-- debug: var=result['user']
+- debug: var=result['ilo']
 
-
-- name: Get account based on filter UserName
-  ilo_user_facts:
-    ilo_ip:       {{ilo_ip}}
-    ilo_username: {{ilo_username}}
-    password:     {{ilo_password}}
-    type:     'UserName'
-    name:     'this_user'
-  no_log: true
+- name: Gather facts about ilo firmware
+  ilo_manager_facts:
+    ilo_ip:       {{'ilo_ip'}}
+    ilo_username: {{'ilo_username'}}
+    password:     {{'ilo_password'}}
+    option:       Firmware
   register: result
-- debug: var=result['user']
+- debug: var=result['ilo']['firmware']
 
-
-- name: Get account based on filter RoleId
-  ilo_user_facts:
-    ilo_ip:       {{ilo_ip}}
-    ilo_username: {{ilo_username}}
-    password:     {{ilo_password}}
-    type:     'RoleId'
-    name:     'Operator'      # Possible values: Administrator, Operator, ReadOnly
-  no_log: true
+- name: Gather facts about ilo networks
+  ilo_system_facts:
+    ilo_ip:       {{'ilo_ip'}}
+    ilo_username: {{'ilo_username'}}
+    password:     {{'ilo_password'}}
+    option:       Network
   register: result
-- debug: var=result['user']
+- debug: var=result['ilo']['network']
+
+
 
 '''
 
@@ -75,17 +70,16 @@ from redfish.rest.v1 import ServerDownOrUnreachableError
 from ansible.module_utils.basic import *
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.iloRedfish import RedFishModule
-from ansible.module_utils.users import USERS
+from ansible.module_utils.managers import MANAGERS
 
-class UserFactsModule(object):
+class ManagerFactsModule(object):
     def __init__(self):        
         self.connection       = None
         REDFISH_COMMON_ARGS   = dict(
                 ilo_ip        =dict(type="str", required=True),
                 ilo_username  =dict(type="str", required=True),
-                ilo_password  =dict(type="str", required=False, default=None),
-                type          =dict(type="str", required=False, default='UserName'),
-                name          =dict(type="str", required=False, default=None)
+                ilo_password  =dict(type="str", required=True, default=None),
+                option        =dict(type="str", required=False, choices=['Firmware','Network'])
         )
         _module                 = AnsibleModule(argument_spec=REDFISH_COMMON_ARGS, supports_check_mode=True)
         REDFISH_COMMON_ARGS     = dict(
@@ -100,22 +94,31 @@ class UserFactsModule(object):
         self.module             = _module
 
 def run_module():
-    userFactsModule = UserFactsModule()
-    _module         = userFactsModule.module
-    _connection     = userFactsModule.redfish_client
+    _man            = None
+    manFactsModule  = ManagerFactsModule()
+    _module         = manFactsModule.module
+    _connection     = manFactsModule.redfish_client
 
-    users           = USERS(_connection)
+    manager         = MANAGERS(_connection)
 
-    # Get filter - RoleId or ilo_username
-    _type           = _module.params.get('type')
-    _name           = _module.params.get('name')
+    # Get type of output for manager: Firmware - Network
+    _option         = _module.params.get('option')
+    
+    if _option is not None:
+      if _option == 'Firmware':
+          _man        = manager.get_manager_info()
+          _man_result = dict(firmware=_man['Firmware'])
+    
 
-    if _type is not None and _name is not None:
-      _collection, _collection_uris    = users.get_by(_type, _name)
+      if _option == 'Network':
+          _man        = manager.get_interface_info()  
+          _man_result = dict(network=_man) 
+      
+
     else:
-      _collection, _collection_uris    = users.get_all()
+       _man_result  = manager.get_manager_info()
 
-    result = dict(changed= True, user=json.dumps(_collection, indent=4))
+    result = dict(changed= False, ilo=json.dumps(_man_result, indent=4))
 
     # Logout redfish and exit
     _connection.logout()

@@ -1,0 +1,26 @@
+---
+- hosts: localhost
+
+  vars:
+    ilo_username:   "admin"
+    ilo_password:   "StormLake21!" 
+    ilo_ip:         "10.100.1.2"
+    
+
+  tasks:
+    - name: Create maintenance window
+      ilo_firmware:
+        ilo_ip:       '{{ilo_ip}}'
+        ilo_username: '{{ilo_username}}'
+        ilo_password: '{{ilo_password}}'
+    
+        state:              present
+        option:             Maintenance Window
+        data:
+          name:           '1st Maintenance window'
+          description:    '1st window for maintenance'
+          start_time:     'Jul 21 2021 5:00PM'        # Either use long date
+          end_time:       '07/22/2021 8:00AM'         # Or use short date
+
+      register: result
+    - debug: var=result['ilo']      #['maintenance']

@@ -43,6 +43,8 @@ author:
 import collections
 import sys
 import json
+import time
+
 from redfish import RedfishClient
 from redfish.rest.v1 import ServerDownOrUnreachableError
 
@@ -60,27 +62,48 @@ from ansible.module_utils.iloRedfish import RedFishModule
 
 class SYSTEMS:
 
+    MSG_PHYSICAL_DRIVE_IN_USE           = 'Physical Drives already in logical drives'
+    MSG_PHYSICAL_DRIVE_NOT_EXISTED      = 'Drive in the list {0} does not exist in the controller'    
+    MSG_LOGICAL_DISK_NOT_SPECIFIED      = 'Raid not specified or list of drives empty'
+    MSG_LOGICAL_DISK_NOT_FOUND          = 'Logical disk not found'
 
     def __init__(self, connection):
 
         self.endpoint                   = '/redfish/v1/Systems' 
         self.connection                 = connection
 
-        self.collection,self.collection_uris                            = self.get_all()                  # All members of self.endpoint
+        self.collection,self.collection_uris                                        = self.get_all()                  # All members of self.endpoint
                 
 
-        self.processor_collection , self.processor_collection_uris      = self.get_sub_collection_per(type='Processors')      # All processor collection   
-        self.memory_collection , self.memory_collection_uris            = self.get_sub_collection_per(type='Memory')                 # All memory collection
+        self.processor_collection , self.processor_collection_uris                  = self.get_sub_collection_per(type='Processors')            # All processor collection   
+        self.memory_collection , self.memory_collection_uris                        = self.get_sub_collection_per(type='Memory')                 # All memory collection
 
-        self.array_controller , self.array_controller_uris              = self.get_smart_storage_controllers(type='ArrayControllers') 
-        self.host_bus_adapter , self.host_bus_adapter_uris              = self.get_smart_storage_controllers(type='HostBusAdapters')  
-
-        self.storage_collection , self.storage_collection_uris          = self.get_sub_collection_per(type='Storage')                  # All storage collection
+        # Local Storage
+        self.storage_collection , self.storage_collection_uris                      = self.get_sub_collection_per(type='Storage')                  # All storage collection
+ 
+        # Smart Storage
+        self.array_controller , self.array_controller_uris                          = self.get_smart_storage_controllers(type='ArrayControllers') 
+        self.host_bus_adapter , self.host_bus_adapter_uris                          = self.get_smart_storage_controllers(type='HostBusAdapters')  
+        self.smstorage_config_collection , self.smstorage_config_collection_uris    = self.get_smart_storage_config_setting()
         
+        # Network Adapters
+        self.network_adapter_collection , self.network_adapter_collection_uris      = self.get_sub_collection_per(type='NetworkAdapters')                 # All network Adapters
+
+        self.actions                                                                = [
+                "On",
+                "ForceOff",
+                "GracefulShutdown",
+                "ForceRestart",
+                "Nmi",
+                "PushPowerButton",
+                "GracefulRestart"
+                                                                                    ]
+        # target": "/redfish/v1/Systems/1/Actions/ComputerSystem.Reset/"
+
+
         self.ethernet_collection        = None                  # All ethernet collection
         self.ethernet_collection_uris   = None
-        self.network_collection         = None                  # All network interfaces
-        self.network_collection_uris    = None
+
 
     
     # ----------------- get all members uri    
@@ -89,6 +112,9 @@ class SYSTEMS:
         __collection_uris           = []
 
         __response                  = self.connection.get(self.endpoint)
+
+
+
         for __uri in __response.obj['Members']:
             __collection_uris.append(__uri['@odata.id'])
             __acc                   = self.connection.get(__uri['@odata.id'])
@@ -136,15 +162,15 @@ class SYSTEMS:
 
 
             _sys                    = dict( 
-                model               = _model,
-                serialNumber        = _serialNumber,
-                sku                 = _sku,
-                processor           = _processor,
-                processor_count     = _processor_count,
-                cores               = _cores,
-                memory              = _memory,
-                biosVersion         = _biosVersion,
-                mac                 = _macs
+                Model               = _model,
+                SerialNumber        = _serialNumber,
+                Sku                 = _sku,
+                Processor           = _processor,
+                ProcessorCount      = _processor_count,
+                Cores               = _cores,
+                Memory              = _memory,
+                BiosVersion         = _biosVersion,
+                Mac                 = _macs
             )
         return _sys                   
 
@@ -166,12 +192,12 @@ class SYSTEMS:
                 _cache.append(dict(name=_c['Name'],size=str(_c['MaximumSizeKB']) + ' KB'))
 
             _cpu                    = dict(
-                id                  = _id,
-                model               = _model,
-                cores               = _cores,
-                threads             = _threads,
-                speedMhz            = _speedMhz,
-                cache               = _cache
+                Id                  = _id,
+                Model               = _model,
+                Cores               = _cores,
+                Threads             = _threads,
+                SpeedMhz            = _speedMhz,
+                Cache               = _cache
             )
             _processors.append(_cpu)
 
@@ -188,19 +214,19 @@ class SYSTEMS:
 
             # AMP info
             _amp                    = dict(
-                ampmodestatus       = _oem['AmpModeStatus'],
-                ampmodeactive       = _oem['AmpModeActive'],
-                ampmodesupported    = _oem['AmpModeSupported']
+                AmpModeStatus       = _oem['AmpModeStatus'],
+                AmpmodeActive       = _oem['AmpModeActive'],
+                AmpmodeSupported    = _oem['AmpModeSupported']
             )
 
             # Memory Summary
             _mem_list               = []
             for _el in _oem['MemoryList']:
                 _mem                    = dict(
-                    location            = 'Processor {0}'.format(_el['BoardCpuNumber']),
-                    slots               = _el['BoardNumberOfSockets'],
-                    memory              = str(int(_el['BoardTotalMemorySize'] /1024)) + ' GB',      # in GB
-                    frequency           = _el['BoardOperationalFrequency']
+                    Location            = 'Processor {0}'.format(_el['BoardCpuNumber']),
+                    Slots               = _el['BoardNumberOfSockets'],
+                    Memory              = str(int(_el['BoardTotalMemorySize'] /1024)) + ' GB',      # in GB
+                    Frequency           = _el['BoardOperationalFrequency']
                 )
                 _mem_list.append(_mem)
 
@@ -211,29 +237,65 @@ class SYSTEMS:
             _status              = _ph['Oem']['Hpe']['DIMMStatus'] 
             if _status == 'GoodInUse':      
                 _dimm                   = dict(
-                    socket              = _ph['DeviceLocator'],
-                    status              = _status,
-                    size                = str(int(_ph['CapacityMiB']/ 1024)) + ' GB' ,
-                    technology          = _ph['Oem']['Hpe']['BaseModuleType']  
+                    Socket              = _ph['DeviceLocator'],
+                    Status              = _status,
+                    Size                = str(int(_ph['CapacityMiB']/ 1024)) + ' GB' ,
+                    Technology          = _ph['Oem']['Hpe']['BaseModuleType']  
                 )
                 _physical_memory.append(_dimm)
 
         _memory                     = dict(
-            amp                     = _amp,
-            memorylist              = _mem_list,
-            phsyicalmemory          = _physical_memory 
+            Amp                     = _amp,
+            MemoryList              = _mem_list,
+            PhysicalMemory          = _physical_memory 
         )
 
         return _memory
 
-    # ----------------- get memory info    
+    # ----------------- get base network_adapters info    
+    def get_network_adapter_info(self):
+    
+        _net_list                       = []
+        # Get Base network Summary
+        for _m in self.network_adapter_collection:
+            _name                       = _m['Name']
+            _fw                         = _m['Firmware']['Current']['VersionString']
+            _state                      = _m['Status']['State']
+
+            _port_list                  = []
+            _i                          = 1
+            for _p in _m['PhysicalPorts']:
+                _p_dict                 = dict(
+                    Id                  = 'Port {0}'.format(_i),
+                    Mac                 = _p['MacAddress'],
+                    IPv4                = _p['IPv4Addresses'],
+                    IPv6                = _p['IPv6Addresses'],
+                    LinkStatus          = _p['LinkStatus']
+                )
+                _port_list.append(_p_dict)
+                _i                      = _i + 1
+
+            _net                        = dict(
+                Name                    = _name,
+                Firmware                = _fw,
+                State                   = _state,
+                PhysicalPorts           = _port_list
+            )
+
+            _net_list.append(_net)
+
+
+        return _net_list
+
+
+    # ----------------- get all storage  info    
     def get_storage_info(self):
         _local      = self.get_local_storage()
         _sma, _hba  = self.get_smart_storage()
 
         return _local, _sma, _hba
 
-    # ----------------- get storage info    
+    # ----------------- get local storage info    
     def get_local_storage(self):
 
         _controllers                = []
@@ -273,35 +335,82 @@ class SYSTEMS:
                         _dr_size    = 'Unknown'
 
                     _drive      = dict(
-                        type            = _dr_type,
-                        model           = _dr_model,
-                        serialnumber    = _dr_sn,
-                        location        = _dr_location,
-                        size            = _dr_size,
-                        health          = _dr_health,
-                        temperature     = _dr_temp_health,
-                        wear            = _dr_wear_health
+                        Type            = _dr_type,
+                        Model           = _dr_model,
+                        SerialNumber    = _dr_sn,
+                        Location        = _dr_location,
+                        Size            = _dr_size,
+                        Health          = _dr_health,
+                        Temperature     = _dr_temp_health,
+                        WearHealth      = _dr_wear_health
                     )
                     _physical_drives.append(_drive)
 
                 _ct                 = dict(
-                    firmware        = _fw,
-                    serialnumber    = _sn,
-                    model           = _model,
-                    location        = _location,
-                    physicaldrives  = _physical_drives
+                    Firmware        = _fw,
+                    SerialNumber    = _sn,
+                    Model           = _model,
+                    Location        = _location,
+                    PhysicalDrives  = _physical_drives
                 )
                 _controllers.append(_ct)
 
         return _controllers
 
-# ----------------- get controllers info    
+    # ----------------- get controllers info    
     def get_smart_storage(self):
 
-        _smart_array_collection,_smart_array_collection_uris    =  self.get_smart_storage_controllers('ArrayControllers') 
-        _hba_collection,_hba_collection_uris                    = self.get_smart_storage_controllers('HostBusAdapters') 
+        _smart_array_collection                = self.get_smart_array('ArrayControllers') 
+        _hba_collection                        = self.get_smart_array('HostBusAdapters') 
 
         return _smart_array_collection, _hba_collection
+
+    # ----------------- get Smart Array config
+    def get_smart_array(self,type):
+
+        _contr                      = dict()
+
+        if type == 'ArrayControllers':
+                _m                      = self.array_controller
+                _id                     = _m['Id']
+                _model                  = _m['Model']
+                _sn                     = _m['SerialNumber'].strip()
+                _health                 = _m['Status']['Health']
+                _location               = _m['Location']
+                _pn                     = _m['ControllerPartNumber']
+                _fw                     = _m['FirmwareVersion']['Current']['VersionString']
+                _ld_uri                 = _m['Links']['LogicalDrives']['@odata.id']
+                _pd_uri                 = _m['Links']['PhysicalDrives']['@odata.id']
+
+                # get Physical drives
+                _physical_drives        = []
+                _pd_collection, _pd_collection_uris = self.get_sub_collection_by(_pd_uri)
+                for _uri in _pd_collection_uris:
+                    _pd                 = self.get_physical_drive_by(_uri)
+                    _physical_drives.append(_pd)
+
+                # get Logical drives
+                _logical_drives        = []
+                _ld_collection, _ld_collection_uris = self.get_sub_collection_by(_ld_uri)
+                for _uri in _ld_collection_uris:
+                    _ld                 = self.get_logical_drive_by(_uri)
+                    _logical_drives.append(_ld)
+
+                _contr                  = dict(
+                    Id                  = _id,
+                    Model               = _model,
+                    SerialNumber        = _sn,
+                    PartNumber          = _pn,
+                    Location            = _location,
+                    Status              = _health,
+                    Firmware            = _fw,
+                    LogicalDrives       = _logical_drives,
+                    PhysicalDrives      = _physical_drives 
+                )
+
+
+
+        return _contr
 
 
     # ----------------- get controllers info    
@@ -327,50 +436,6 @@ class SYSTEMS:
 
         return _sub_collection, _sub_collection_uri
 
-
-    # ----------------- get Smart Array config
-    def get_smart_array(self):
-
-        _m                      = self.array_controller
-        _id                     = _m['Id']
-        _model                  = _m['Model']
-        _sn                     = _m['SerialNumber']
-        _health                 = _m['Status']['Health']
-        _location               = _m['Location']
-        _pn                     = _m['ControllerPartNumber']
-        _fw                     = _m['FirmwareVersion']['Current']['VersionString']
-        _ld_uri                 = _m['Links']['LogicalDrives']['@odata.id']
-        _pd_uri                 = _m['Links']['PhysicalDrives']['@odata.id']
-
-        # get Physical drives
-        _physical_drives        = []
-        _pd_collection, _pd_collection_uris = self.get_sub_collection_by(_pd_uri)
-        for _uri in _pd_collection_uris:
-            _pd                 = self.get_physical_drive_by(_uri)
-            _physical_drives.append(_pd)
-
-        # get Logical drives
-        _logical_drives        = []
-        _ld_collection, _ld_collection_uris = self.get_sub_collection_by(_ld_uri)
-        for _uri in _ld_collection_uris:
-            _ld                 = self.get_logical_drive_by(_uri)
-            _logical_drives.append(_ld)
-
-        _contr                  = dict(
-            id                  = _id,
-            model               = _model,
-            serialnumber        = _sn,
-            partnumber          = _pn,
-            location            = _location,
-            status              = _health,
-            firmware            = _fw,
-            logicaldrives       = _logical_drives,
-            physicaldrives      = _physical_drives 
-        )
-
-
-
-        return _contr
 
     # ----------------- get logical drive info    
     def get_logical_drive_by(self, uri):
@@ -406,10 +471,157 @@ class SYSTEMS:
                 health                  = __obj['Status']['Health'],
                 serialnumber            = __obj['SerialNumber'],
                 size                    = str(int(__obj['CapacityMiB'] / 1024)) + ' GB',
-                firmware                = __obj['FirmwareVersion']['Current']['VersionString']
+                firmware                = __obj['FirmwareVersion']['Current']['VersionString'],
+                diskdriveuse            = __obj['DiskDriveUse'],
+                encrypteddrive          = __obj['EncryptedDrive']
             )
         return _pd
 
+    # ----------------- get Smart Storage Config and settings info    
+    def get_smart_storage_config_setting(self):
+        #/redfish/v1/Systems/1/SmartStorageConfig
+
+        __sub_collection                = []
+        __sub_collection_uris           = []
+
+        for _endpoint in self.collection_uris:
+            _uri                        = _endpoint + '/SmartStorageConfig'
+            _resp                       = self.connection.get(_uri)
+            __sub_collection.append(_resp.obj)               
+            __sub_collection_uris.append(_uri)
+
+        return  __sub_collection, __sub_collection_uris 
+
+    # ----------------- create a logical drive    
+    def create_logical_drive(self, raid, name, drive_list=[]):
+
+        _config                         = self.smstorage_config_collection 
+        
+        if drive_list is not None and raid is not None:
+            _smart_array                = self.get_smart_array('ArrayControllers')
+            _physical_drives_list       = _smart_array ['PhysicalDrives']
+            _pd_list                    = []
+            for _pd in _physical_drives_list :
+                _pd_list.append(_pd['Location'])
+
+            __existed                   = True
+            for _drive in drive_list:
+                __existed               = __existed and ( _drive in _pd_list)
+
+            if __existed:
+                for _config in self.smstorage_config_collection:
+                    _ld_list                        = _config['LogicalDrives']
+                    # Check if drive_list already in existing logical drives
+                    _unconfigured               = True
+                    for _ld in _ld_list:
+                        if _ld['DataDrives'] == drive_list:
+                            _unconfigured       = False
+                            break
+
+                    if _unconfigured:
+                        # Build body for create request 
+                        _new_ld                     = dict(
+                                Raid                    = raid ,
+                                DataDrives              = drive_list
+                            )
+                        if name is not None:
+                            _new_ld['LogicalDriveName'] = name
+
+                        _body                       = _config.copy()
+
+                        _body['DataGuard']          = 'Disabled'            # Set to disabled to allow config change
+                        _ld_list.append(_new_ld)                            # Add new logical drive to list
+                            
+                        _resp                       = self.logical_drive_action(_body)
+                        _msg                        = ''
+                        _status                     = True
+                    else:
+                        _resp                       = None
+                        _msg                        = self.MSG_PHYSICAL_DRIVE_IN_USE
+                        _status                     = False
+            else:
+                _resp                   = None
+                _msg                    = self.MSG_PHYSICAL_DRIVE_NOT_EXISTED.format(drive_list) 
+                _status                 = False 
+        else:
+            _resp                       = None
+            _msg                        = self.MSG_LOGICAL_DISK_NOT_SPECIFIED
+            _status                     = False
+
+        return  _resp,  _status, _msg
+
+
+    # ----------------- create a logical drive    
+    def delete_logical_drive(self, name, drive_list=[]):
+
+        _config                         = self.smstorage_config_collection 
+        _found                          = False
+        _vol_id                         = None
+
+        if drive_list is not None or name is not None:
+            for _config in self.smstorage_config_collection:
+                _ld_list                = _config['LogicalDrives']
+                for _ld in _ld_list:
+                    if _ld['LogicalDriveName'] == name:
+                        _found          = True
+                        _vol_id         = _ld['VolumeUniqueIdentifier']
+                        break
+                    else:
+                        if _ld['DataDrives'] == drive_list:
+                            _found          = True
+                            _vol_id         = _ld['VolumeUniqueIdentifier']  
+                            break
+                if _found:
+                    _actions                = dict(
+                            Actions         = [ dict(Action = 'LogicalDriveDelete')],
+                            VolumeUniqueIdentifier  = _vol_id
+                            )                        
+                    
+                    _body                   = dict( 
+                        DataGuard           = 'Permissive',
+                        LogicalDrives       =   [
+                                                dict(
+                                                        Actions                 = [ dict(Action = 'LogicalDriveDelete')],
+                                                        VolumeUniqueIdentifier  = _vol_id                            
+                                                    )
+                                                ]
+                        )
+                    _resp                   = self.logical_drive_action(_body)
+                    _msg                    = ''
+                    _status                 = True 
+
+
+                else:
+                    _resp                   = None
+                    _msg                    = self.MSG_LOGICAL_DISK_NOT_FOUND
+                    _status                 = False
+                    
+
+        return  _resp, _status, _msg
+        
+
+
+    # ----------------- define system action   
+    def logical_drive_action(self,  body):
+        _config                     = self.smstorage_config_collection 
+        
+        for _config in self.smstorage_config_collection:
+            _endpoint                   = _config['@Redfish.Settings']['SettingsObject']['@odata.id']
+            _resp                       = self.connection.put(_endpoint, body)
+            if 'error' in _resp.obj:
+                for _info in _resp.obj['error']['@Message.ExtendedInfo']:
+                    _msg                    = _info['MessageId'].split()[-1]
+                if  'SystemResetRequired' in _msg:
+                    _action             = dict(ResetType = 'ForceRestart')
+                    for _m in self.collection_uris:
+                        _action_endpoint    = _m + '/Actions/ComputerSystem.Reset/'
+                        #_action_endpoint    = '/redfish/v1/Systems/1/Actions/ComputerSystem.Reset/'
+                    _resp               = self.connection.post(_action_endpoint, _action)
+                    
+        return _resp.obj
+  
+ 
+    
     # ----------------- get sub collection info    
     def get_sub_collection_by(self, uri):
         
@@ -426,8 +638,8 @@ class SYSTEMS:
                     __sub_collection.append(__response.obj)
         
         return __sub_collection, __sub_collection_uris
-
-
+  
+    
     # ----------------- get sub collection info    
     def get_sub_collection_per(self, type):
         
@@ -439,8 +651,35 @@ class SYSTEMS:
 
         if type is not None:
             for _m in self.collection:
-                __entry_point           = _m[type]['@odata.id']
+
+                # Power on server if necessary
+                _isOff                  = (_m['PowerState'] == 'Off')      
+                if (type == 'Storage' or type == 'NetworkAdapters') and _isOff:
+                    self.poweron_and_wait_post()            
+
+                # Get collection here
+                # Network Adapters use ['Oem']['Hpe']['Links']
+                if type == 'NetworkAdapters':
+                    __entry_point       = _m['Oem']['Hpe']['Links']['NetworkAdapters']['@odata.id']
+                else:
+                    __entry_point       = _m[type]['@odata.id']    
+
                 __response              = self.connection.get(__entry_point)
+
+                # Check if __response.obj is ready
+                _msg                    = ''
+                if 'error' in __response.obj:
+                    for _info in __response.obj['error']['@Message.ExtendedInfo']:
+                        _msg                    = _info['MessageId'].split()[-1]
+                while  'ResourceNotReadyRetry' in _msg:
+                    time.sleep(2)
+                    # Re-query again
+                    __response              = self.connection.get(__entry_point)
+                    # Check if __response.obj is ready
+                    if 'error' in __response.obj:
+                        for _info in __response.obj['error']['@Message.ExtendedInfo']:
+                            _msg                    = _info['MessageId'].split()[-1]
+                
                 for __sm in __response.obj['Members']:
                     __sm_uri            = __sm['@odata.id']
                     __sub_collection_uris.append(__sm_uri)
@@ -449,5 +688,53 @@ class SYSTEMS:
                     __sub_collection.append(__response.obj)
         
         return __sub_collection, __sub_collection_uris
+
+
+    # ------------------- Power on server and wait for POSt to complete
+    def poweron_and_wait_post(self):
+        # Check server power status
+        for __uri in self.collection_uris:
+            __resp              = self.connection.get(__uri)
+            _m                  = __resp.obj
+            _power_state        = _m["PowerState"]
+
+            if (_power_state == 'Off'):
+                # Power On server 
+                _action             = dict(ResetType = 'On')
+                _action_endpoint    = __uri + '/Actions/ComputerSystem.Reset/'
+                __resp              = self.connection.post(_action_endpoint, _action)
+
+                time.sleep(5)
+
+                ### Query PostState
+                __resp              = self.connection.get(__uri)
+                _m                  = __resp.obj
+                _oem                = _m['Oem']['Hpe']
+                _post_state         = _oem['PostState']
+                _device_discover    = _oem['DeviceDiscoveryComplete']['DeviceDiscovery']
+                
+                # Wait for POST to complete
+                _iteration          = 0
+                _device_discover    = ''
+
+                while  'DeviceDiscoveryComplete' not in _device_discover:
+                    time.sleep(1)
+                    _iteration  = _iteration + 1 
+
+                    __resp              = self.connection.get(__uri)
+                    _m                  = __resp.obj
+
+                    ### PostState
+                    _oem                = _m['Oem']['Hpe']
+                    _post_state         = _oem['PostState']
+                    _device_discover    = _oem['DeviceDiscoveryComplete']['DeviceDiscovery']
+
+
+    # ----------------- generate error message    
+    def generate_error_message(self, msg):
+        _error              = dict()
+        _error['error']     = dict()
+        _error['error']['@Message.ExtendedInfo'] = [dict(MessageId = msg)] 
+        return _error
 
 

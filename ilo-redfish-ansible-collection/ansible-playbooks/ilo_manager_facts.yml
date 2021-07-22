@@ -1,0 +1,43 @@
+---
+- hosts: localhost
+
+  vars:
+    username:   "admin"
+    password:   "StormLake21!" 
+    ip:         "10.100.1.2"
+    
+
+  tasks:
+   - name: ilo manager facts
+     ilo_manager_facts:
+        ilo_ip        : "{{ ip }}"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+        
+     register: result
+
+   - debug: var=result['ilo']
+
+   - name: ilo manager facts- network
+     ilo_manager_facts:
+        ilo_ip        : "{{ ip }}"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+        
+        option        : Network     
+     register: result
+
+   - debug: var=result['ilo']
+
+   - debug: var=result['ilo']
+
+   - name: ilo manager facts- firmware
+     ilo_manager_facts:
+        ilo_ip        : "{{ ip }}"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+        
+        option        : Firmware     
+     register: result
+
+   - debug: var=result['ilo']

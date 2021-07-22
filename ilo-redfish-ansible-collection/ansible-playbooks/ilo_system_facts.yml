@@ -1,0 +1,61 @@
+---
+- hosts: localhost
+
+  vars:
+    username:   "admin"
+    password:   "StormLake21!" 
+    
+
+  tasks:
+
+
+   - name: ilo system facts
+     ilo_system_facts:
+        ilo_ip        : "10.1.1.7"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+
+        option        : Memory      
+     
+     
+     register: result
+
+   - debug: var=result['system']
+
+   - name: ilo system facts
+     ilo_system_facts:
+        ilo_ip        : "10.1.1.7"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+
+        option        : Processors     
+     
+     
+     register: result
+
+   - debug: var=result['system']
+
+   - name: ilo system facts
+     ilo_system_facts:
+        ilo_ip        : "10.100.1.2"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+
+        option        : Network     
+     
+     
+     register: result
+
+   - debug: var=result['system']
+
+   - name: ilo system facts
+     ilo_system_facts:
+        ilo_ip        : "10.100.1.2"
+        ilo_username  : "{{ username }}"
+        ilo_password  : "{{ password }}"
+
+        option        : Storage     
+     
+     register: result
+
+   - debug: var=result['system']

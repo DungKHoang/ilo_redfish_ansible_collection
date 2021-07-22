@@ -138,44 +138,41 @@ class USERS:
                 
 
                 __response          = self.connection.post(self.endpoint, body)
-                _ret_status         = __response.obj
-                if 'error' in _ret_status.keys():
-                    _msg            = _ret_status['error']['@Message.ExtendedInfo'][0]['MessageId']
+                _resp               = __response.obj
+                _status             = True
+                if 'error' in _resp.keys():
+                    _msg            = _new['error']['@Message.ExtendedInfo'][0]['MessageId']
                     _status         = False
 
-                else: # Operation succeeded
-                    _new            = _ret_status                    
-                    _msg            = ''
-                    _status         = True
-
             else :
-                _msg                = self.MSG_ALREADY_PRESENT.format(username) 
-                _new                = None
-                _status             = True
+                _msg                = self.MSG_ALREADY_PRESENT.format(username)
+                _status             = False
+                _resp               = None
 
-        return  _msg, _new, _status
+
+        return   _resp, _status, _msg
 
 
     # ---------------------- Delete account...
     def delete_user(self,username):
         _msg                         = ''
-        _status                      = True
+        
 
         if username is not None:
             _this, _this_uri        = self.get_by(type='UserName', name = username)
             if _this is not None:
                 __response          = self.connection.delete(_this_uri)
-                _ret_status         = __response.obj
-                if 'error' in _ret_status.keys():
-                    _msg            = _ret_status['error']['@Message.ExtendedInfo'][0]['MessageId']
-                    _status         = True
-                else: # Operation succeeded               
-                    _msg            = self.MSG_DELETED.format(username)           
+                _resp               = __response.obj               
+                _msg                = self.MSG_DELETED.format(username) 
+                _status             = True          
             else:
                     _msg            = self.MSG_NOT_EXISTED.format(username)
+                    _status         = False
+                    _resp           = None
 
 
-        return _msg, _status
+        return _resp, _status, _msg
+
 
 
 
