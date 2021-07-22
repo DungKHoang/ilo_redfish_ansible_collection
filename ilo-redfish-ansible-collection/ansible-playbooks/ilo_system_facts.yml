@@ -3,7 +3,8 @@
 
   vars:
     username:   "admin"
-    password:   "StormLake21!" 
+    password:   "some_password" 
+    ip:         "some_ip"
     
 
   tasks:
@@ -11,7 +12,7 @@
 
    - name: ilo system facts
      ilo_system_facts:
-        ilo_ip        : "10.1.1.7"
+        ilo_ip        : "{{ ip }}"
         ilo_username  : "{{ username }}"
         ilo_password  : "{{ password }}"
 

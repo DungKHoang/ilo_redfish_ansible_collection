@@ -3,13 +3,14 @@
 
   vars:
     username:   "admin"
-    password:   "StormLake21!" 
+    password:   "some_password" 
+    ip:         "some_ip"
     
 
   tasks:
    - name: ilo accounts
      ilo_user_facts:
-        ilo_ip        : "10.1.1.7"
+        ilo_ip        : "{{ ip }}"
         ilo_username  : "{{ username }}"
         ilo_password  : "{{ password }}"
         type:       'UserName'

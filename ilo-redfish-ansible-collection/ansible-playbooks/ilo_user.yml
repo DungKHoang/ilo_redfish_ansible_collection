@@ -3,7 +3,8 @@
 
   vars:
     username:   "admin"
-    password:   "StormLake21!" 
+    password:   "some_password" 
+    ip:         "some_ip"
     
 
   tasks:

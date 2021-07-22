@@ -2,17 +2,17 @@
 - hosts: localhost
 
   vars:
-    ilo_username:   "admin"
-    ilo_password:   "StormLake21!" 
-    ilo_ip:         "10.100.1.2"
+    username:   "admin"
+    password:   "some_password" 
+    ip:         "some_ip"
     
 
   tasks:
     - name: Create maintenance window
       ilo_firmware:
-        ilo_ip:       '{{ilo_ip}}'
-        ilo_username: '{{ilo_username}}'
-        ilo_password: '{{ilo_password}}'
+        ilo_ip:       '{{ip}}'
+        ilo_username: '{{username}}'
+        ilo_password: '{{password}}'
     
         state:              present
         option:             Maintenance Window
